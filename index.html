@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Design System — Test ID & Mixpanel</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, sans-serif; background: #f9fafb; color: #111827; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const raw = {
+      "Base": {
+        "save": "Salvar", "cancel": "Cancelar", "edit": "Editar", "finish": "Concluir",
+        "update": "Atualizar", "back": "Voltar", "close": "Fechar", "continue": "Continuar", "download": "Baixar"
+      },
+      "Domain": {
+        "access-fiscal-management": "Acessar gestão fiscal", "access-installments": "Acessar parcelamentos",
+        "update-key": "Atualizar chave", "deactivate-key": "Desativar chave",
+        "configure-bulk": "Configurar em lote", "calculate-attachment": "Calcular anexo"
+      },
+      "Management": {
+        "add-certificate": "Adicionar certificado", "add-user": "Adicionar usuário",
+        "delete-company": "Excluir empresa", "remove-user": "Remover usuário",
+        "manage-users": "Gerenciar usuários", "manage-portfolio": "Administrar carteira"
+      },
+      "Data": {
+        "view-details": "Ver detalhes", "view-files": "Ver arquivos", "view-all": "Ver tudo",
+        "add-filter": "Adicionar filtro", "download-files": "Baixar arquivos",
+        "export-all": "Exportar tudo", "download-report": "Baixar relatório"
+      },
+      "Communication": {
+        "send-message": "Enviar mensagem", "learn-more": "Saber mais"
+      },
+      "Integration": {
+        "integrate": "Realizar integração"
+      }
+    };
+
+    const toEvent = (name) => "clicked_" + name.replace(/-/g, "_");
+
+    const categoryColors = {
+      Base:          { bg:"#EFF6FF", border:"#BFDBFE", text:"#1D4ED8", dot:"#3B82F6" },
+      Domain:        { bg:"#FAF5FF", border:"#E9D5FF", text:"#7E22CE", dot:"#A855F7" },
+      Management:    { bg:"#FFF7ED", border:"#FED7AA", text:"#C2410C", dot:"#F97316" },
+      Data:          { bg:"#F0FDF4", border:"#BBF7D0", text:"#15803D", dot:"#22C55E" },
+      Communication: { bg:"#FFF1F2", border:"#FECDD3", text:"#BE123C", dot:"#F43F5E" },
+      Integration:   { bg:"#F0F9FF", border:"#BAE6FD", text:"#0369A1", dot:"#0EA5E9" },
+    };
+
+    const allRows = Object.entries(raw).flatMap(([cat, items]) =>
+      Object.entries(items).map(([name, label]) => ({ cat, name, label, testId: name, event: toEvent(name) }))
+    );
+
+    const Badge = ({ color, bg, border, text }) => (
+      <span style={{
+        background: bg, color, border: `1px solid ${border}`,
+        padding: "2px 8px", borderRadius: 4, fontSize: 11,
+        fontFamily: "monospace", whiteSpace: "nowrap", display:"inline-block"
+      }}>{text}</span>
+    );
+
+    const Table = ({ rows }) => (
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead>
+            <tr style={{background:"#F9FAFB",borderBottom:"2px solid #E5E7EB"}}>
+              {["Categoria","Label","Test ID","Mixpanel Event"].map(h => (
+                <th key={h} style={{padding:"10px 14px",textAlign:"left",color:"#6B7280",fontWeight:600,fontSize:12}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const c = categoryColors[r.cat];
+              return (
+                <tr key={i} style={{borderBottom:"1px solid #F3F4F6", background: i%2===0?"#fff":"#FAFAFA"}}>
+                  <td style={{padding:"10px 14px"}}>
+                    <span style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:500,color:c.text}}>
+                      <span style={{width:8,height:8,borderRadius:"50%",background:c.dot,flexShrink:0}}/>
+                      {r.cat}
+                    </span>
+                  </td>
+                  <td style={{padding:"10px 14px",fontWeight:500,color:"#111827"}}>{r.label}</td>
+                  <td style={{padding:"10px 14px"}}>
+                    <Badge bg="#EFF6FF" border="#BFDBFE" color="#1D4ED8" text={`data-testid="${r.testId}"`} />
+                  </td>
+                  <td style={{padding:"10px 14px"}}>
+                    <Badge bg="#FAF5FF" border="#E9D5FF" color="#7E22CE" text={r.event} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+
+    function App() {
+      const [tab, setTab] = React.useState("overview");
+      const [search, setSearch] = React.useState("");
+      const [activeCategory, setActiveCategory] = React.useState("Todos");
+
+      const categories = ["Todos", ...Object.keys(raw)];
+
+      const filtered = allRows.filter(r => {
+        const matchCat = activeCategory === "Todos" || r.cat === activeCategory;
+        const q = search.toLowerCase();
+        const matchSearch = !q || r.label.toLowerCase().includes(q) || r.name.includes(q) || r.event.includes(q);
+        return matchCat && matchSearch;
+      });
+
+      const tabs = [
+        { id: "overview", label: "Visão Geral" },
+        { id: "tokens", label: `Todos os Tokens (${allRows.length})` },
+        { id: "rules", label: "Regras" },
+      ];
+
+      return (
+        <div style={{maxWidth:900,margin:"0 auto",padding:24}}>
+          <div style={{marginBottom:24}}>
+            <h1 style={{fontSize:22,fontWeight:700,margin:"0 0 4px"}}>Design System — Padronização de IDs</h1>
+            <p style={{color:"#6B7280",fontSize:14,margin:0}}>Fonte única de verdade para Label, Test ID e Mixpanel Event · {allRows.length} tokens em {Object.keys(raw).length} categorias</p>
+          </div>
+
+          <div style={{display:"flex",gap:4,borderBottom:"2px solid #E5E7EB",marginBottom:24}}>
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                padding:"8px 16px",border:"none",cursor:"pointer",fontSize:13,fontWeight:500,borderRadius:"6px 6px 0 0",
+                background: tab===t.id?"#fff":"transparent",
+                color: tab===t.id?"#4F46E5":"#6B7280",
+                borderBottom: tab===t.id?"2px solid #4F46E5":"2px solid transparent",
+                marginBottom:-2
+              }}>{t.label}</button>
+            ))}
+          </div>
+
+          {tab === "overview" && (
+            <div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+                {Object.entries(raw).map(([cat, items]) => {
+                  const c = categoryColors[cat];
+                  return (
+                    <div key={cat} style={{background:c.bg,border:`1px solid ${c.border}`,borderRadius:10,padding:14,cursor:"pointer"}}
+                      onClick={() => { setTab("tokens"); setActiveCategory(cat); }}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <span style={{fontWeight:600,color:c.text,fontSize:14}}>{cat}</span>
+                        <span style={{background:"#fff",border:`1px solid ${c.border}`,color:c.text,borderRadius:12,padding:"1px 8px",fontSize:11,fontWeight:600}}>{Object.keys(items).length}</span>
+                      </div>
+                      <div style={{fontSize:11,color:"#6B7280"}}>{Object.values(items).slice(0,2).join(", ")}{Object.keys(items).length > 2 ? "..." : ""}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+                {[
+                  { title:"Label", desc:"Texto visual. Pode mudar conforme contexto.", bg:"#F9FAFB", border:"#E5E7EB" },
+                  { title:"Test ID", desc:"Imutável. Usado pela automação de testes.", bg:"#EFF6FF", border:"#BFDBFE" },
+                  { title:"Mixpanel Event", desc:"clicked_[name] · viewed_[name] · submitted_[name]", bg:"#FAF5FF", border:"#E9D5FF" },
+                ].map(c => (
+                  <div key={c.title} style={{background:c.bg,border:`1px solid ${c.border}`,borderRadius:10,padding:14}}>
+                    <div style={{fontWeight:600,marginBottom:4,fontSize:13}}>{c.title}</div>
+                    <div style={{fontSize:12,color:"#6B7280"}}>{c.desc}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:14,fontSize:13,color:"#92400E"}}>
+                ⚠️ <strong>Importante:</strong> mudar o Label <strong>não</strong> significa mudar o Test ID ou o evento Mixpanel. Os três têm ciclos de vida independentes.
+              </div>
+            </div>
+          )}
+
+          {tab === "tokens" && (
+            <div>
+              <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+                <input
+                  placeholder="Buscar por label, token ou evento..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{flex:1,minWidth:200,padding:"8px 12px",border:"1px solid #E5E7EB",borderRadius:8,fontSize:13,outline:"none"}}
+                />
+              </div>
+              <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+                {categories.map(c => (
+                  <button key={c} onClick={() => setActiveCategory(c)} style={{
+                    padding:"4px 12px",border:`1px solid ${activeCategory===c?"#4F46E5":"#E5E7EB"}`,
+                    borderRadius:20,fontSize:12,cursor:"pointer",fontWeight: activeCategory===c?600:400,
+                    background: activeCategory===c?"#EEF2FF":"#fff",
+                    color: activeCategory===c?"#4F46E5":"#6B7280"
+                  }}>{c}</button>
+                ))}
+              </div>
+              {filtered.length > 0
+                ? <Table rows={filtered} />
+                : <div style={{textAlign:"center",padding:40,color:"#9CA3AF",fontSize:14}}>Nenhum resultado encontrado.</div>
+              }
+            </div>
+          )}
+
+          {tab === "rules" && (
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {[
+                { title:"Nomenclatura", desc:"Sempre kebab-case para o name. Ex: update-key, access-installments." },
+                { title:"Test ID é imutável", desc:"Uma vez definido, o Test ID não muda. Se o comportamento mudar, cria-se um novo token." },
+                { title:"Convenção Mixpanel", desc:"clicked_[name] para cliques · viewed_[name] para visualizações · submitted_[name] para formulários." },
+                { title:"Categorias", desc:"Base = ações genéricas · Domain = negócio · Management = gestão · Data = dados · Communication = comunicação · Integration = integrações." },
+                { title:"Test ID não é CSS", desc:"Nunca usar data-testid como seletor de estilo. É exclusivo para testes automatizados." },
+                { title:"Design System é a fonte da verdade", desc:"Dev e QA devem sempre consultar aqui antes de implementar ou escrever testes." },
+                { title:"Changelog", desc:"Qualquer novo token deve ser adicionado aqui antes de ir para produção. Mudanças de Label não exigem atualização de testes." },
+              ].map((r, i) => (
+                <div key={i} style={{display:"flex",gap:14,background:"#F9FAFB",border:"1px solid #E5E7EB",borderRadius:10,padding:14,alignItems:"flex-start"}}>
+                  <div>
+                    <div style={{fontWeight:600,marginBottom:2,fontSize:14}}>{r.title}</div>
+                    <div style={{fontSize:13,color:"#6B7280"}}>{r.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
